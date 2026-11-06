@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEGENDS OF THE LOST KINGDOM – RPG Adventure</title>
+  <style>
+    :root {
+      --bg-dark: #0a0c14;
+      --panel-bg: rgba(15, 20, 35, 0.88);
+      --gold: #f3c653;
+      --gold-hover: #ffd700;
+      --accent: #8b5cf6;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border: rgba(243, 198, 83, 0.3);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #viewport {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+    }
+    /* UI Overlay Containers */
+    .screen {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at center, rgba(10,12,20,0.85) 0%, rgba(5,6,10,0.95) 100%);
+      transition: opacity 0.4s ease;
+    }
+    .screen.hidden { opacity: 0; pointer-events: none; }
+    
+    /* Main Menu Styling */
+    h1.title {
+      font-size: 3.5rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-transform: uppercase;
+      text-shadow: 0 0 20px rgba(243, 198, 83, 0.4), 0 4px 8px rgba(0,0,0,0.8);
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    p.subtitle {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      margin-bottom: 2.5rem;
+      text-transform: uppercase;
+    }
+    .menu-btn {
+      background: linear-gradient(135deg, #2a2340 0%, #1a162b 100%);
+      border: 2px solid var(--gold);
+      color: var(--gold);
+      padding: 14px 36px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 8px 0;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      min-width: 260px;
+      text-align: center;
+    }
+    .menu-btn:hover {
+      background: var(--gold);
+      color: #000;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(243, 198, 83, 0.4);
+    }
+
+    /* Character Creation / Class Selection */
+    .card-container {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 1000px;
+    }
+    .class-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      width: 180px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .class-card:hover, .class-card.selected {
+      border-color: var(--gold);
+      transform: translateY(-5px);
+      box-shadow: 0 8px 24px rgba(243, 198, 83, 0.2);
+      background: rgba(25, 32, 55, 0.95);
+    }
+    .class-card h3 { color: var(--gold); margin-bottom: 8px; font-size: 1.2rem; }
+    .class-card p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.3; }
+
+    /* In-Game HUD */
+    #hud {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 5;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px;
+    }
+    .hud-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .hud-bottom { display: flex; justify-content: space-between; align-items: flex-end; }
+    
+    .player-stats {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 8px;
+      width: 280px;
+      backdrop-filter: blur(6px);
+      pointer-events: auto;
+    }
+    .stat-bar-container { margin-bottom: 8px; }
+    .stat-bar-container:last-child { margin-bottom: 0; }
+    .stat-label { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 3px; }
+    .bar-bg { background: rgba(0,0,0,0.6); height: 10px; border-radius: 5px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+    .bar-fill { height: 100%; width: 100%; transition: width 0.3s ease; }
+    #hp-bar { background: linear-gradient(90deg, #ef4444, #f87171); }
+    #mp-bar { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+    #exp-bar { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+
+    .quest-tracker {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      padding: 14px 18px;
+      border-radius: 8px;
+      width: 320px;
+      backdrop-filter: blur(6px);
+      pointer-events: auto;
+    }
+    .quest-tracker h4 { color: var(--gold); font-size: 0.95rem; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em; }
+    .quest-tracker p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
+
+    .action-bar {
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+    .skill-slot {
+      width: 54px; height: 54px;
+      background: var(--panel-bg);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: var(--gold);
+      position: relative;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+    }
+    .skill-slot span { position: absolute; top: 3px; left: 6px; font-size: 0.65rem; color: var(--text-muted); }
+
+    /* Crosshair */
+    #crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 10px; height: 10px;
+      border: 2px solid rgba(243, 198, 83, 0.6);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* Modal Panels (Inventory, Quests, Menu) */
+    .modal-panel {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 750px; height: 500px;
+      background: rgba(12, 16, 28, 0.95);
+      border: 2px solid var(--gold);
+      border-radius: 12px;
+      z-index: 20;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.8);
+      backdrop-filter: blur(10px);
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; }
+    .modal-header h2 { color: var(--gold); font-size: 1.5rem; letter-spacing: 0.05em; }
+    .close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
+    .close-btn:hover { color: var(--gold); }
+    .modal-body { flex: 1; overflow-y: auto; display: flex; gap: 20px; }
+
+    /* Dialogue Box */
+    #dialogue-box {
+      position: absolute;
+      bottom: 100px; left: 50%;
+      transform: translateX(-50%);
+      width: 650px;
+      background: rgba(12, 16, 28, 0.92);
+      border: 2px solid var(--gold);
+      border-radius: 10px;
+      padding: 20px;
+      z-index: 15;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+    #dialogue-box h3 { color: var(--gold); margin-bottom: 6px; font-size: 1.1rem; }
+    #dialogue-box p { font-size: 0.95rem; line-height: 1.5; color: var(--text-main); margin-bottom: 14px; }
+    
+    /* Notifications */
+    #notification-area {
+      position: absolute;
+      top: 90px; right: 24px;
+      z-index: 25;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .notification {
+      background: rgba(15, 20, 35, 0.9);
+      border-left: 4px solid var(--gold);
+      padding: 12px 18px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
+    }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
+
+    /* Controls Overlay Guide */
+    .controls-hint {
+      position: absolute;
+      bottom: 24px; right: 24px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      pointer-events: auto;
+    }
+  </style>
+
+  <!-- Three.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="viewport"></div>
+  <div id="crosshair"></div>
+
+  <!-- MAIN MENU SCREEN -->
+  <div id="main-menu" class="screen">
+    <h1 class="title">Legends of the Lost Kingdom</h1>
+    <p class="subtitle">An Epic Open-World Fantasy RPG Adventure</p>
+    <button class="menu-btn" onclick="Game.startNewGame()">Start Adventure</button>
+    <button class="menu-btn" onclick="Game.openClassSelection()">Choose Class</button>
+    <button class="menu-btn" onclick="Game.showControlsInfo()">Controls & Guide</button>
+  </div>
+
+  <!-- CHARACTER CREATION SCREEN -->
+  <div id="class-screen" class="screen hidden">
+    <h1 class="title" style="font-size: 2.2rem; margin-bottom: 1.5rem;">Select Your Hero Class</h1>
+    <div class="card-container">
+      <div class="class-card selected" onclick="Game.selectClass('WARRIOR', this)">
+        <h3>Warrior</h3>
+        <p>Master of swords and heavy armor. High defense and melee dominance.</p>
+      </div>
+      <div class="class-card" onclick="Game.selectClass('MAGE', this)">
+        <h3>Mage</h3>
+        <p>Wields devastating elemental spells, fireballs, and lightning.</p>
+      </div>
+      <div class="class-card" onclick="Game.selectClass('ARCHER', this)">
+        <h3>Archer</h3>
+        <p>Precision ranged combat specialist with rapid-fire deadly shots.</p>
+      </div>
+      <div class="class-card" onclick="Game.selectClass('ASSASSIN', this)">
+        <h3>Assassin</h3>
+        <p>Stealthy dagger strikes, critical damage, and high mobility.</p>
+      </div>
+      <div class="class-card" onclick="Game.selectClass('PALADIN', this)">
+        <h3>Paladin</h3>
+        <p>Holy protector with sacred healing magic and unbreakable defense.</p>
+      </div>
+    </div>
+    <button class="menu-btn" onclick="Game.confirmClassSelection()">Confirm & Enter Eldoria</button>
+  </div>
+
+  <!-- IN-GAME HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="player-stats">
+        <div class="stat-bar-container">
+          <div class="stat-label"><span id="player-name-lvl">Hero Lv. 1</span><span><span id="hp-val">100</span>/<span id="hp-max">100</span></span></div>
+          <div class="bar-bg"><div id="hp-bar" class="bar-fill" style="width: 100%;"></div></div>
+        </div>
+        <div class="stat-bar-container">
+          <div class="stat-label"><span>Mana</span><span><span id="mp-val">50</span>/<span id="mp-max">50</span></span></div>
+          <div class="bar-bg"><div id="mp-bar" class="bar-fill" style="width: 100%;"></div></div>
+        </div>
+        <div class="stat-bar-container">
+          <div class="stat-label"><span>Experience</span><span><span id="exp-val">0</span>/100</span></div>
+          <div class="bar-bg"><div id="exp-bar" class="bar-fill" style="width: 0%;"></div></div>
+        </div>
+      </div>
+
+      <div class="quest-tracker">
+        <h4>Active Quest</h4>
+        <p id="active-quest-title">Recover the Crystal of Eldoria</p>
+        <p id="active-quest-desc" style="color: var(--text-main); margin-top: 4px;">Explore the Medieval Kingdom and defeat corrupt goblins threatening the village.</p>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="action-bar">
+        <div class="skill-slot"><span>1</span>Attack</div>
+        <div class="skill-slot"><span>2</span>Spell</div>
+        <div class="skill-slot"><span>3</span>Block</div>
+        <div class="skill-slot"><span>4</span>Potion</div>
+      </div>
+      <div class="controls-hint">
+        <b>WASD</b>: Move | <b>Mouse</b>: Look<br>
+        <b>LMB</b>: Attack | <b>RMB</b>: Cast Spell<br>
+        <b>Shift</b>: Sprint | <b>Space</b>: Jump<br>
+        <b>E</b>: Interact / Talk | <b>I</b>: Inventory
+      </div>
+    </div>
+  </div>
+
+  <!-- DIALOGUE BOX -->
+  <div id="dialogue-box" style="display: none;">
+    <h3 id="npc-name">Village Elder</h3>
+    <p id="npc-text">Welcome, traveler! The dark lord Malgrath has unleashed monsters upon Eldoria. You must recover the Seven Legendary Crystals!</p>
+    <button class="menu-btn" style="padding: 8px 20px; font-size: 0.9rem; min-width: auto;" onclick="Game.closeDialogue()">Continue Quest</button>
+  </div>
+
+  <!-- NOTIFICATIONS -->
+  <div id="notification-area"></div>
+
+  <!-- INVENTORY MODAL -->
+  <div id="inventory-modal" class="modal-panel hidden">
+    <div class="modal-header">
+      <h2>Hero Inventory & Equipment</h2>
+      <button class="close-btn" onclick="Game.toggleInventory()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="flex: 1; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px;">
+        <h3 style="color: var(--gold); margin-bottom: 12px; font-size: 1.1rem;">Equipped Gear</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px;">Weapon: <b style="color:var(--text-main)" id="eq-weapon">Iron Sword</b></p>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px;">Armor: <b style="color:var(--text-main)" id="eq-armor">Medium Leather Armor</b></p>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Gold: <b style="color:var(--gold)" id="eq-gold">250</b> Coins</p>
+      </div>
+      <div style="flex: 2; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px;">
+        <h3 style="color: var(--gold); margin-bottom: 12px; font-size: 1.1rem;">Backpack Items</h3>
+        <ul id="item-list" style="list-style: none; font-size: 0.9rem; display: flex; flex-direction: column; gap: 8px;">
+          <li style="background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between;"><span>Health Potion (x3)</span><span style="color: var(--gold);">Restore 50 HP</span></li>
+          <li style="background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between;"><span>Mana Crystal (x2)</span><span style="color: var(--gold);">Restore 30 MP</span></li>
+          <li style="background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between;"><span>Goblin Tooth (x5)</span><span style="color: var(--text-muted);">Quest Material</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME SCRIPT (THREE.JS ENGINE & GAMEPLAY LOGIC) -->
+  <script>
+    const Game = {
+      state: 'MENU', // MENU, CLASS_SELECT, PLAYING, DIALOGUE, INVENTORY
+      selectedClassType: 'WARRIOR',
+      playerClass: { name: 'Warrior', hp: 120, maxHp: 120, mp: 40, maxMp: 40, attack: 25, defense: 15 },
+      playerLevel: 1,
+      playerExp: 0,
+      playerGold: 250,
+      
+      // Three.js core variables
+      scene: null,
+      camera: null,
+      renderer: null,
+      playerMesh: null,
+      keys: {},
+      enemies: [],
+      projectiles: [],
+      worldObjects: [],
+      clock: new THREE.Clock(),
+      
+      // Movement & Physics
+      playerVelocity: new THREE.Vector3(),
+      isSprinting: false,
+      isAttacking: false,
+      attackCooldown: 0,
+
+      init() {
+        this.setupGraphics();
+        this.setupEvents();
+      },
+
+      setupGraphics() {
+        const container = document.getElementById('viewport');
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x0f1423);
+        this.scene.fog = new THREE.FogExp2(0x0f1423, 0.015);
+
+        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(this.renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        this.scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xfff5d6, 0.9);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        this.scene.add(dirLight);
+
+        // Build Open World environment (Medieval Kingdom / Eldoria fields)
+        this.buildWorld();
+      },
+
+      buildWorld() {
+        // Ground terrain
+        const groundGeo = new THREE.PlaneGeometry(600, 600, 64, 64);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e3f20, roughness: 0.8 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        this.scene.add(ground);
+
+        // Castle Walls & Village structures
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x5a6270, roughness: 0.7 });
+        
+        // Central Castle Keep
+        const keepGeo = new THREE.BoxGeometry(30, 40, 30);
+        const keep = new THREE.Mesh(keepGeo, wallMat);
+        keep.position.set(0, 20, -120);
+        keep.castShadow = true; keep.receiveShadow = true;
+        this.scene.add(keep);
+
+        // Village Houses
+        for (let i = 0; i < 8; i++) {
+          const houseGeo = new THREE.BoxGeometry(10, 10, 14);
+          const roofMat = new THREE.MeshStandardMaterial({ color: 0x8b3a2b });
+          const house = new THREE.Mesh(houseGeo, wallMat);
+          const angle = (i / 8) * Math.PI * 2;
+          const dist = 50 + (i % 2) * 15;
+          house.position.set(Math.cos(angle) * dist, 5, Math.sin(angle) * dist);
+          house.castShadow = true; house.receiveShadow = true;
+          this.scene.add(house);
+        }
+
+        // Trees in Enchanted Forest sector
+        for (let i = 0; i < 50; i++) {
+          const x = (Math.random() - 0.5) * 400;
+          const z = (Math.random() - 0.5) * 400;
+          if (Math.abs(x) < 40 && Math.abs(z) < 40) continue; // keep center clear
+          this.createTree(x, z);
+        }
+
+        // Spawn Player Character Mesh
+        const playerGeo = new THREE.CapsuleGeometry(1, 2, 4, 16);
+        const playerMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6 });
+        this.playerMesh = new THREE.Mesh(playerGeo, playerMat);
+        this.playerMesh.position.set(0, 1, 0);
+        this.playerMesh.castShadow = true;
+        this.scene.add(this.playerMesh);
+
+        // Spawn Initial Enemies (Goblins & Skeletons)
+        for (let i = 0; i < 6; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 30 + Math.random() * 40;
+          this.spawnEnemy(Math.cos(angle) * dist, Math.sin(angle) * dist, i % 2 === 0 ? 'GOBLIN' : 'SKELETON');
+        }
+      },
+
+      createTree(x, z) {
+        const trunkGeo = new THREE.CylinderGeometry(0.8, 1.2, 6, 8);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3525 });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.set(x, 3, z);
+        trunk.castShadow = true;
+        this.scene.add(trunk);
+
+        const leavesGeo = new THREE.ConeGeometry(4, 8, 8);
+        const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1b4d2e });
+        const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+        leaves.position.set(x, 8, z);
+        leaves.castShadow = true;
+        this.scene.add(leaves);
+      },
+
+      spawnEnemy(x, z, type) {
+        const color = type === 'GOBLIN' ? 0x228b22 : 0xd3d3d3;
+        const enemyGeo = new THREE.BoxGeometry(1.5, 2.2, 1.2);
+        const enemyMat = new THREE.MeshStandardMaterial({ color: color });
+        const mesh = new THREE.Mesh(enemyGeo, enemyMat);
+        mesh.position.set(x, 1.1, z);
+        mesh.castShadow = true;
+        this.scene.add(mesh);
+
+        this.enemies.push({
+          mesh: mesh,
+          type: type,
+          hp: type === 'GOBLIN' ? 50 : 80,
+          maxHp: type === 'GOBLIN' ? 50 : 80,
+          attackPower: type === 'GOBLIN' ? 10 : 18,
+          speed: type === 'GOBLIN' ? 3.5 : 2.5,
+          state: 'PATROL'
+        });
+      },
+
+      setupEvents() {
+        window.addEventListener('resize', () => {
+          this.camera.aspect = window.innerWidth / window.innerHeight;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.addEventListener('keydown', (e) => {
+          this.keys[e.code] = true;
+          if (e.code === 'KeyI' && this.state === 'PLAYING') this.toggleInventory();
+        });
+
+        window.addEventListener('keyup', (e) => {
+          this.keys[e.code] = false;
+        });
+
+        window.addEventListener('mousedown', (e) => {
+          if (this.state === 'PLAYING' && e.button === 0) {
+            this.performAttack();
+          } else if (this.state === 'PLAYING' && e.button === 2) {
+            this.castSpell();
+          }
+        });
+
+        // Prevent context menu on right click
+        window.addEventListener('contextmenu', e => e.preventDefault());
+      },
+
+      startNewGame() {
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('hud').classList.remove('hidden');
+        this.state = 'PLAYING';
+        this.showNotification("Quest Started: Recover the Crystal of Eldoria");
+        this.animate();
+      },
+
+      openClassSelection() {
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('class-screen').classList.remove('hidden');
+        this.state = 'CLASS_SELECT';
+      },
+
+      selectClass(className, el) {
+        document.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        this.selectedClassType = className;
+      },
+
+      confirmClassSelection() {
+        switch(this.selectedClassType) {
+          case 'WARRIOR': this.playerClass = { name: 'Warrior', hp: 140, maxHp: 140, mp: 30, maxMp: 30, attack: 30, defense: 20 }; break;
+          case 'MAGE': this.playerClass = { name: 'Mage', hp: 90, maxHp: 90, mp: 100, maxMp: 100, attack: 35, defense: 8 }; break;
+          case 'ARCHER': this.playerClass = { name: 'Archer', hp: 100, maxHp: 100, mp: 50, maxMp: 50, attack: 28, defense: 10 }; break;
+          case 'ASSASSIN': this.playerClass = { name: 'Assassin', hp: 95, maxHp: 95, mp: 40, maxMp: 40, attack: 38, defense: 8 }; break;
+          case 'PALADIN': this.playerClass = { name: 'Paladin', hp: 130, maxHp: 130, mp: 60, maxMp: 60, attack: 24, defense: 25 }; break;
+        }
+        document.getElementById('class-screen').classList.add('hidden');
+        document.getElementById('main-menu').classList.remove('hidden');
+        document.getElementById('player-name-lvl').innerText = `${this.playerClass.name} Lv. 1`;
+        this.updateHUDStats();
+        this.showNotification(`Class selected: ${this.playerClass.name}`);
+      },
+
+      showControlsInfo() {
+        alert("CONTROLS & GUIDE:\n\n- WASD: Move Character\n- Mouse Left Click: Melee Attack\n- Mouse Right Click: Cast Magical Spell\n- Shift: Sprint\n- Space: Jump\n- I: Open Inventory\n\nObjective: Explore Eldoria, defeat corrupt monsters, and restore the legendary crystals!");
+      },
+
+      toggleInventory() {
+        const modal = document.getElementById('inventory-modal');
+        if (this.state === 'PLAYING') {
+          this.state = 'INVENTORY';
+          modal.classList.remove('hidden');
+        } else if (this.state === 'INVENTORY') {
+          this.state = 'PLAYING';
+          modal.classList.add('hidden');
+        }
+      },
+
+      closeDialogue() {
+        document.getElementById('dialogue-box').style.display = 'none';
+        this.state = 'PLAYING';
+      },
+
+      showNotification(text) {
+        const area = document.getElementById('notification-area');
+        const notif = document.createElement('div');
+        notif.className = 'notification';
+        notif.innerText = text;
+        area.appendChild(notif);
+        setTimeout(() => notif.remove(), 3000);
+      },
+
+      updateHUDStats() {
+        document.getElementById('hp-val').innerText = Math.max(0, Math.floor(this.playerClass.hp));
+        document.getElementById('hp-max').innerText = this.playerClass.maxHp;
+        document.getElementById('hp-bar').style.width = `${(this.playerClass.hp / this.playerClass.maxHp) * 100}%`;
+        
+        document.getElementById('mp-val').innerText = Math.floor(this.playerClass.mp);
+        document.getElementById('mp-max').innerText = this.playerClass.maxMp;
+        document.getElementById('mp-bar').style.width = `${(this.playerClass.mp / this.playerClass.maxMp) * 100}%`;
+
+        document.getElementById('exp-val').innerText = this.playerExp;
+        document.getElementById('exp-bar').style.width = `${(this.playerExp / 100) * 100}%`;
+        
+        document.getElementById('eq-gold').innerText = this.playerGold;
+      },
+
+      performAttack() {
+        if (this.isAttacking) return;
+        this.isAttacking = true;
+        setTimeout(() => { this.isAttacking = false; }, 400);
+
+        // Check proximity to enemies for damage
+        this.enemies.forEach(enemy => {
+          const dist = this.playerMesh.position.distanceTo(enemy.mesh.position);
+          if (dist < 4.0) {
+            enemy.hp -= this.playerClass.attack;
+            this.showNotification(`Hit ${enemy.type} for ${this.playerClass.attack} damage!`);
+            // Flash red on hit
+            enemy.mesh.material.color.setHex(0xff0000);
+            setTimeout(() => enemy.mesh.material.color.setHex(enemy.type === 'GOBLIN' ? 0x228b22 : 0xd3d3d3), 200);
+
+            if (enemy.hp <= 0) {
+              this.scene.remove(enemy.mesh);
+              this.playerExp += 25;
+              this.playerGold += 15;
+              this.showNotification(`Defeated ${enemy.type}! +25 EXP`);
+              if (this.playerExp >= 100) {
+                this.playerExp = 0;
+                this.playerLevel++;
+                this.playerClass.maxHp += 20;
+                this.playerClass.hp = this.playerClass.maxHp;
+                document.getElementById('player-name-lvl').innerText = `${this.playerClass.name} Lv. ${this.playerLevel}`;
+                this.showNotification(`Level Up! You are now Level ${this.playerLevel}!`);
+              }
+              this.updateHUDStats();
+            }
+          }
+        });
+      },
+
+      castSpell() {
+        if (this.playerClass.mp < 15) {
+          this.showNotification("Not enough Mana!");
+          return;
+        }
+        this.playerClass.mp -= 15;
+        this.updateHUDStats();
+
+        // Spawn Fireball Projectile
+        const projGeo = new THREE.SphereGeometry(0.5, 8, 8);
+        const projMat = new THREE.MeshBasicMaterial({ color: 0xff6600 });
+        const proj = new THREE.Mesh(projGeo, projMat);
+        proj.position.copy(this.playerMesh.position).add(new THREE.Vector3(0, 1, 0));
+        this.scene.add(proj);
+
+        this.projectiles.push({
+          mesh: proj,
+          velocity: new THREE.Vector3(0, 0, 15).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.playerMesh.rotation.y),
+          life: 2.0
+        });
+        this.showNotification("Cast Fireball Spell!");
+      },
+
+      update(delta) {
+        if (this.state !== 'PLAYING') return;
+
+        // Player Movement
+        const speed = (this.keys['ShiftLeft'] || this.keys['ShiftRight']) ? 9.0 : 5.0;
+        const moveDir = new THREE.Vector3();
+
+        if (this.keys['KeyW'] || this.keys['ArrowUp']) moveDir.z -= 1;
+        if (this.keys['KeyS'] || this.keys['ArrowDown']) moveDir.z += 1;
+        if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveDir.x -= 1;
+        if (this.keys['KeyD'] || this.keys['ArrowRight']) moveDir.x += 1;
+
+        if (moveDir.length() > 0) {
+          moveDir.normalize();
+          moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.camera.rotation.y);
+          this.playerMesh.position.addScaledVector(moveDir, speed * delta);
+          this.playerMesh.rotation.y = Math.atan2(moveDir.x, moveDir.z);
+        }
+
+        // Camera Follows Player
+        this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, this.playerMesh.position.x + Math.sin(this.playerMesh.rotation.y) * 8, 0.1);
+        this.camera.position.z = THREE.MathUtils.lerp(this.camera.position.z, this.playerMesh.position.z + Math.cos(this.playerMesh.rotation.y) * 8, 0.1);
+        this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, this.playerMesh.position.y + 5, 0.1);
+        this.camera.lookAt(this.playerMesh.position.clone().add(new THREE.Vector3(0, 1, 0)));
+
+        // Update Projectiles
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+          const p = this.projectiles[i];
+          p.mesh.position.addScaledVector(p.velocity, delta);
+          p.life -= delta;
+
+          // Check hit enemies
+          this.enemies.forEach(enemy => {
+            if (p.mesh.position.distanceTo(enemy.mesh.position) < 2.0) {
+              enemy.hp -= 40;
+              this.scene.remove(p.mesh);
+              this.projectiles.splice(i, 1);
+              this.showNotification(`Fireball struck ${enemy.type} for 40 damage!`);
+            }
+          });
+
+          if (p.life <= 0) {
+            this.scene.remove(p.mesh);
+            this.projectiles.splice(i, 1);
+          }
+        }
+
+        // Update Enemies AI
+        this.enemies = this.enemies.filter(enemy => enemy.hp > 0);
+        this.enemies.forEach(enemy => {
+          const dist = enemy.mesh.position.distanceTo(this.playerMesh.position);
+          if (dist < 25.0) {
+            // Chase player
+            const dir = new THREE.Vector3().subVectors(this.playerMesh.position, enemy.mesh.position).normalize();
+            enemy.mesh.position.addScaledVector(dir, enemy.speed * delta);
+            enemy.mesh.lookAt(this.playerMesh.position);
+
+            // Attack player if close
+            if (dist < 2.0) {
+              this.playerClass.hp -= enemy.attackPower * delta;
+              this.updateHUDStats();
+              if (this.playerClass.hp <= 0) {
+                alert("You have fallen in battle! Respawning at Eldoria Village...");
+                this.playerClass.hp = this.playerClass.maxHp;
+                this.playerMesh.position.set(0, 1, 0);
+              }
+            }
+          }
+        });
+      },
+
+      animate() {
+        requestAnimationFrame(() => this.animate());
+        const delta = this.clock.getDelta();
+        this.update(delta);
+        this.renderer.render(this.scene, this.camera);
+      }
+    };
+
+    window.onload = () => Game.init();
+  </script>
+</body>
+</html>
